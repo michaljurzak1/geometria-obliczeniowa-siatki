@@ -317,7 +317,7 @@ canvas.draw()
 canvas.get_tk_widget().pack(side=tkinter.TOP, fill=tkinter.BOTH, expand=1)
 
 def quadTree():
-    global ax
+    global ax, points
     try:
         coeff = float(scale_coeff.get())
         if 0>coeff or coeff>1:
@@ -352,6 +352,7 @@ def quadTree():
 
 
 def delaunay():
+    global points, triangulation
     try:
         coeff = float(scale_coeff.get())
         if 0>coeff or coeff>1:
@@ -516,7 +517,7 @@ def constrained_delaunay():
         answer.config(text="Enter a valid value between 0 and 1.")
 
 def delaunay_boundary():
-    global ax
+    global ax, points, triangulation
     try:
         coeff = float(scale_coeff.get())
         if 0>coeff or coeff>1:
@@ -611,14 +612,14 @@ def delaunay_boundary():
 #KONIEC
 
 def save_file():
-    nb_nodes = len(points)
+    nb_nodes = len(np.transpose(points))
     nb_elements = len(triangulation)
     current_dir = os.getcwd()
-    print(points)
+    print(np.transpose(points))
     file = open(f"{current_dir}\plate_mesh.dat", "w")
     file.write("{} {}\n".format(nb_nodes, nb_elements))
-    for i, node in enumerate(points):
-        file.write("{} {} {}\n".format(i, node.x, node.y))
+    for i, node in enumerate(np.transpose(points)):
+        file.write("{} {} {}\n".format(i, node[0], node[1]))
     for j, elem in enumerate(triangulation):
         file.write("{} {} {} {}\n".format(j, elem[0], elem[1], elem[2]))
     file.close()
