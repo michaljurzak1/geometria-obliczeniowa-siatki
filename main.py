@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import tkinter
+import delaunay as D
 from tkinter import (
     filedialog as fd,
 )
@@ -14,6 +15,7 @@ from matplotlib.figure import Figure
 import cv2
 
 class Point:
+
     def __init__(self, x, y):
         self.x = x
         self.y = y
@@ -78,12 +80,6 @@ def constrained_bowyer_watson(points, boundary_points):
             triangulation.remove(triangle)
 
         for edge in polygon_edges(polygon):
-            print(edge)
-            if(edge.p1 in boundary_points):
-                print("string")
-
-            if edge.p1 not in boundary_points and edge.p2 not in boundary_points and point not in boundary_points:
-                print("uzycie")
                 triangulation.append(Triangle(edge.p1, edge.p2, point))
 
     for triangle in triangulation:
@@ -93,10 +89,10 @@ def constrained_bowyer_watson(points, boundary_points):
     return triangulation
 
 def create_super_triangle(points):
-    min_x = min(point.x for point in points)
-    min_y = min(point.y for point in points)
-    max_x = max(point.x for point in points)
-    max_y = max(point.y for point in points)
+    min_x = min(point.x for point in points) + 1
+    min_y = min(point.y for point in points) + 1
+    max_x = max(point.x for point in points) + 1
+    max_y = max(point.y for point in points) + 1
 
     dx = max_x - min_x
     dy = max_y - min_y
@@ -291,15 +287,26 @@ def getContourPoints(image: str, scale: float):
 points = [Point(np.random.rand(), np.random.rand()) for _ in range(20)]
 # Triangulacja Bowyera-Watsona
 triangulation = bowyer_watson(points)
-
+print(triangulation)
+DT = D.Delaunay_Triangulation()
+for p in points:
+    DT.AddPoint(D.Point(p.x, p.y))
+XS, YS, TS = DT.export()
+# print(XS)
+# print(YS)
+# print(TS)
+# print([point.x for point in points])
+# print([point.y for point in points])
+# print(len(triangulation))
 root = tkinter.Tk()
 root.wm_title("Projekt GO")
 
 
 # Wyświetlanie wynikowych trójkątów
+# plt.triplot([point.x for point in points], [point.y for point in points], [[point.x, point.y] for point in triangulation])
 plt.triplot([point.x for point in points], [point.y for point in points], [[point.x, point.y] for point in triangulation])
 plt.plot([point.x for point in points], [point.y for point in points], 'o')
-
+contours = None
 fig, ax = plt.gcf(), plt.gca()
 # plt.show()
 
@@ -317,7 +324,7 @@ canvas.draw()
 canvas.get_tk_widget().pack(side=tkinter.TOP, fill=tkinter.BOTH, expand=1)
 
 def quadTree():
-    global ax, points
+    global ax, points, contours
     try:
         coeff = float(scale_coeff.get())
         if 0>coeff or coeff>1:
@@ -350,9 +357,9 @@ def quadTree():
     except ValueError:
         answer.config(text="Enter a valid value between 0 and 1.")
 
-
+triang = None
 def delaunay():
-    global points, triangulation
+    global points, triangulation, contours, triang
     try:
         coeff = float(scale_coeff.get())
         if 0>coeff or coeff>1:
@@ -366,9 +373,6 @@ def delaunay():
         coords = np.transpose([x, y])
         points = [Point(*coord) for coord in coords]
         coords = np.transpose((x,y))
-        # print(coords)
-
-        # ax.scatter(x, y, s=0.3, color='red', alpha=1.0)
 
         # ROZMIESZCZENIE PUNKTOW
         image = plt.imread(filename)
@@ -388,51 +392,41 @@ def delaunay():
         # DELAUNAY !!!
         # w kazdym ksztalcie robimy triangulacje
 
-
+        triang = []
         for contour in contours:
             set_of_points = []
-            #c = np.concatenate(contour, axis=0)
-            #c = np.append(c, c[0])
-            # c = np.append(contour, contour[0])
-            # max_x = np.max(np.transpose(contour)[0])
-            # min_x = np.min(np.transpose(contour)[0])
-            # max_y = np.max(np.transpose(contour)[1])
-            # min_y = np.min(np.transpose(contour)[1])
-            # cv2.fillPoly(image, contour, color=(0, 0, 255))
+
             cv2.drawContours(image, contour, -1, (0, 255, 0), 1)
             # plt.imshow(image)
             for coord in coords:
                 pt = tuple([int(round(coord[0])), int(round(coord[1]))])
-                # print(coord)
-                # print(f'contour: {np.concatenate(contour, axis=0)}')
-                # print(cv2.pointPolygonTest(contour, pt, False))
                 if cv2.pointPolygonTest(contour, pt, False) >= 0:
 
                     set_of_points.append(pt)
-                # if min_x<=pt[0]<=max_x and min_y<=pt[1]<=max_y:
-                #     set_of_points.append(pt)
+
             con = np.transpose(contour)
             plt.plot(con[0], con[1], color='r', linewidth=2)
             points = [Point(x,y) for x, y in set_of_points]
             triangulation = bowyer_watson(points)
             plt.triplot([point.x for point in points], [point.y for point in points], [[point.x, point.y] for point in triangulation])
             plt.plot([point.x for point in points], [point.y for point in points], 'o')
-            points = np.transpose(set_of_points)
 
+            DT = D.Delaunay_Triangulation()
+            for p in points:
+                DT.AddPoint(D.Point(p.x, p.y))
+            XS, YS, TS = DT.export()
+            triang.append(TS)
+
+            points = np.transpose(set_of_points)
             # print(points)
             plt.scatter(points[0], points[1], color='red', s=0.2)
 
-        # points = [Point(np.random.rand(), np.random.rand()) for _ in range(n_points)]
-        # triangulation = bowyer_watson(points)
-        # plt.triplot([point.x for point in points], [point.y for point in points],
-        #             [[point.x, point.y] for point in triangulation])
-        # plt.plot([point.x for point in points], [point.y for point in points], 'o')
         canvas.draw()
     except ValueError:
         answer.config(text="Enter a valid value between 0 and 1.")
 
 def constrained_delaunay():
-    global triangulation, points
+    global triangulation, points, contours, triang
     try:
         coeff = float(scale_coeff.get())
         if 0>coeff or coeff>1:
@@ -468,7 +462,7 @@ def constrained_delaunay():
         # DELAUNAY !!!
         # w kazdym ksztalcie robimy triangulacje
 
-
+        triang=[]
         for contour in contours:
             set_of_points = []
             #c = np.concatenate(contour, axis=0)
@@ -501,6 +495,13 @@ def constrained_delaunay():
             triangulation = constrained_bowyer_watson(points, concat)
             plt.triplot([point.x for point in points], [point.y for point in points], [[point.x, point.y] for point in triangulation])
             #plt.plot([point.x for point in points], [point.y for point in points], 'o')
+
+            # DT = D.Delaunay_Triangulation()
+            # for p in points:
+            #     DT.AddPoint(D.Point(p.x, p.y))
+            # XS, YS, TS = DT.export()
+            # triang.append(TS)
+
             points = np.transpose(set_of_points)
 
             # print(points)
@@ -517,7 +518,7 @@ def constrained_delaunay():
         answer.config(text="Enter a valid value between 0 and 1.")
 
 def delaunay_boundary():
-    global ax, points, triangulation
+    global ax, points, triangulation, contours, triang
     try:
         coeff = float(scale_coeff.get())
         if 0>coeff or coeff>1:
@@ -553,7 +554,7 @@ def delaunay_boundary():
         # DELAUNAY !!!
         # w kazdym ksztalcie robimy triangulacje
 
-
+        triang=[]
         for contour in contours:
             # set_of_points = []
             #c = np.concatenate(contour, axis=0)
@@ -578,12 +579,20 @@ def delaunay_boundary():
             #     #     set_of_points.append(pt)
             contour = contour[:,0]
             con = np.transpose(contour)
-            print(contour)
+            #print(contour)
+            print(len(contour))
             plt.plot(con[0], con[1], color='r', linewidth=2)
             points = [Point(x,y) for x, y in contour]
             triangulation = bowyer_watson(points)
             plt.triplot([point.x for point in points], [point.y for point in points], [[point.x, point.y] for point in triangulation])
             plt.plot([point.x for point in points], [point.y for point in points], 'o')
+
+            DT = D.Delaunay_Triangulation()
+            for p in points:
+                DT.AddPoint(D.Point(p.x, p.y))
+            XS, YS, TS = DT.export()
+            triang.append(TS)
+
             points = np.transpose(contour)
 
             # print(points)
@@ -612,18 +621,36 @@ def delaunay_boundary():
 #KONIEC
 
 def save_file():
-    nb_nodes = len(np.transpose(points))
-    nb_elements = len(triangulation)
     current_dir = os.getcwd()
-    print(np.transpose(points))
     file = open(f"{current_dir}\plate_mesh.dat", "w")
-    file.write("{} {}\n".format(nb_nodes, nb_elements))
-    for i, node in enumerate(np.transpose(points)):
-        file.write("{} {} {}\n".format(i, node[0], node[1]))
-    for j, elem in enumerate(triangulation):
-        file.write("{} {} {} {}\n".format(j, elem[0], elem[1], elem[2]))
+    for i in range(len(contours)):
+        contour = contours[i][:, 0]
+        triangulation = triang[i]
+        points = [Point(x, y) for x, y in contour]
+        nb_nodes = len(points)
+        nb_elements = len(triangulation)
+        # print(np.transpose(points))
+
+        file.write("{} {}\n".format(nb_nodes, nb_elements))
+        for i, node in enumerate(points):
+            file.write("{} {} {}\n".format(i, node.x, node.y))
+        for j, elem in enumerate(triangulation):
+            file.write("{} {} {} {}\n".format(j, elem[0], elem[1], elem[2]))
     file.close()
 
+def save_quad_file():
+    current_dir = os.getcwd()
+    file = open(f"{current_dir}\plate_quad_mesh.dat", "w")
+    for i in range(len(contours)):
+        contour = contours[i][:, 0]
+        points = [Point(x, y) for x, y in contour]
+        nb_nodes = len(points)
+        # print(np.transpose(points))
+
+        file.write("{}\n".format(nb_nodes))
+        for i, node in enumerate(points):
+            file.write("{} {} {}\n".format(i, node.x, node.y))
+    file.close()
 
 tkinter.Label(text="Coeffient: ").pack(pady=10)
 scale_coeff = tkinter.Entry(root)
@@ -659,5 +686,6 @@ button_quit = tkinter.Button(master=root, text='Quit', command=_quit)
 button_open_file = tkinter.Button(master=root, text='Upload file', command=select_file)
 button_quit.pack(side=tkinter.BOTTOM)
 button_open_file.pack(expand=True)
-tkinter.Button(master=root, text="Save file", command=save_file).pack(pady=10)
+tkinter.Button(master=root, text="Save Delaunay file", command=save_file).pack(pady=10)
+tkinter.Button(master=root, text="Save QuadTree file", command=save_quad_file).pack(pady=10)
 tkinter.mainloop()
